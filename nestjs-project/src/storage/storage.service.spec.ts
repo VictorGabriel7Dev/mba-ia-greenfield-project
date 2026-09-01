@@ -18,6 +18,14 @@ jest.mock('@aws-sdk/s3-request-presigner', () => ({
 
 const mockedGetSignedUrl = getSignedUrl as unknown as jest.Mock;
 
+/**
+ * `jest.Mock.mock.calls` is typed `any[]`, so every index access on it trips
+ * the no-unsafe-* rules. Narrowing once here keeps the assertions typed.
+ */
+function callArgs(mock: jest.Mock): unknown[][] {
+  return mock.mock.calls as unknown as unknown[][];
+}
+
 const BUCKET = 'streamtube-videos';
 const KEY = 'channels/c1/videos/v1/source.mp4';
 const UPLOAD_ID = 'upload-123';
@@ -55,7 +63,7 @@ describe('StorageService', () => {
       );
 
       expect(result).toBe(UPLOAD_ID);
-      const command = internalClient.send.mock.calls[0][0] as unknown;
+      const command = callArgs(internalClient.send)[0][0];
       expect(command).toBeInstanceOf(CreateMultipartUploadCommand);
     });
 
@@ -87,7 +95,7 @@ describe('StorageService', () => {
     it('signs part URLs with the public client, since the browser uploads them', async () => {
       await service.presignUploadParts(BUCKET, KEY, UPLOAD_ID, 2, 3600);
 
-      for (const call of mockedGetSignedUrl.mock.calls) {
+      for (const call of callArgs(mockedGetSignedUrl)) {
         expect(call[0]).toBe(publicClient);
         expect(call[1]).toBeInstanceOf(UploadPartCommand);
       }
@@ -96,7 +104,7 @@ describe('StorageService', () => {
     it('passes the TTL as seconds', async () => {
       await service.presignUploadParts(BUCKET, KEY, UPLOAD_ID, 1, 3600);
 
-      expect(mockedGetSignedUrl.mock.calls[0][2]).toEqual({ expiresIn: 3600 });
+      expect(callArgs(mockedGetSignedUrl)[0][2]).toEqual({ expiresIn: 3600 });
     });
 
     it('returns an empty list for zero parts rather than a single URL', async () => {
@@ -123,7 +131,7 @@ describe('StorageService', () => {
         { partNumber: 2, etag: 'b' },
       ]);
 
-      const command = internalClient.send.mock.calls[0][0] as {
+      const command = callArgs(internalClient.send)[0][0] as {
         input: { MultipartUpload: { Parts: { PartNumber: number }[] } };
       };
       expect(command).toBeInstanceOf(CompleteMultipartUploadCommand);
@@ -151,7 +159,7 @@ describe('StorageService', () => {
 
       await service.abortMultipartUpload(BUCKET, KEY, UPLOAD_ID);
 
-      const command = internalClient.send.mock.calls[0][0] as {
+      const command = callArgs(internalClient.send)[0][0] as {
         input: { UploadId: string };
       };
       expect(command).toBeInstanceOf(AbortMultipartUploadCommand);
@@ -163,8 +171,8 @@ describe('StorageService', () => {
     it('signs a client-bound read with the public client', async () => {
       await service.presignGet(BUCKET, KEY, 900);
 
-      expect(mockedGetSignedUrl.mock.calls[0][0]).toBe(publicClient);
-      expect(mockedGetSignedUrl.mock.calls[0][1]).toBeInstanceOf(
+      expect(callArgs(mockedGetSignedUrl)[0][0]).toBe(publicClient);
+      expect(callArgs(mockedGetSignedUrl)[0][1]).toBeInstanceOf(
         GetObjectCommand,
       );
     });
@@ -174,7 +182,7 @@ describe('StorageService', () => {
       // network, so only an explicit assertion separates them.
       await service.presignInternalGet(BUCKET, KEY, 7200);
 
-      expect(mockedGetSignedUrl.mock.calls[0][0]).toBe(internalClient);
+      expect(callArgs(mockedGetSignedUrl)[0][0]).toBe(internalClient);
     });
 
     it('sets response-content-disposition when a download is requested', async () => {
@@ -182,7 +190,7 @@ describe('StorageService', () => {
         contentDisposition: 'attachment; filename="clip.mp4"',
       });
 
-      const command = mockedGetSignedUrl.mock.calls[0][1] as {
+      const command = callArgs(mockedGetSignedUrl)[0][1] as {
         input: { ResponseContentDisposition?: string };
       };
       expect(command.input.ResponseContentDisposition).toBe(
@@ -193,7 +201,7 @@ describe('StorageService', () => {
     it('omits response-content-disposition when not requested', async () => {
       await service.presignGet(BUCKET, KEY, 900);
 
-      const command = mockedGetSignedUrl.mock.calls[0][1] as {
+      const command = callArgs(mockedGetSignedUrl)[0][1] as {
         input: { ResponseContentDisposition?: string };
       };
       expect(command.input.ResponseContentDisposition).toBeUndefined();
@@ -211,7 +219,7 @@ describe('StorageService', () => {
         'image/jpeg',
       );
 
-      expect(internalClient.send.mock.calls[0][0]).toBeInstanceOf(
+      expect(callArgs(internalClient.send)[0][0]).toBeInstanceOf(
         PutObjectCommand,
       );
     });
@@ -221,7 +229,7 @@ describe('StorageService', () => {
 
       const result = await service.headObject(BUCKET, KEY);
 
-      expect(internalClient.send.mock.calls[0][0]).toBeInstanceOf(
+      expect(callArgs(internalClient.send)[0][0]).toBeInstanceOf(
         HeadObjectCommand,
       );
       expect(result.contentLength).toBe(10737418240);

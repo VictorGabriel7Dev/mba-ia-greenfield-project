@@ -1,3 +1,4 @@
+import * as Joi from 'joi';
 import { envValidationSchema } from './env.validation';
 
 const requiredEnv = {
@@ -10,11 +11,38 @@ const requiredEnv = {
   STORAGE_SECRET_KEY: 'storage-secret',
 };
 
-const validate = (env: Record<string, string>) =>
+/** The subset of the validated environment these tests make assertions about. */
+interface ValidatedEnv {
+  SWAGGER_ENABLED: string;
+  STORAGE_ENDPOINT: string;
+  STORAGE_PUBLIC_ENDPOINT: string;
+  QUEUE_HOST: string;
+  QUEUE_PORT: number;
+  VIDEO_MAX_SIZE_BYTES: number;
+  VIDEO_UPLOAD_PART_SIZE_BYTES: number;
+}
+
+const validate = (
+  env: Record<string, string>,
+): Joi.ValidationResult<ValidatedEnv> =>
   envValidationSchema.validate(
     { ...requiredEnv, ...env },
     { allowUnknown: true, abortEarly: false },
-  );
+  ) as Joi.ValidationResult<ValidatedEnv>;
+
+/**
+ * `Joi.ValidationResult` is a union: on the error branch `value` is `any`.
+ * Destructuring both fields at once therefore yields an untyped value. This
+ * helper narrows to the success branch, and fails with the real reason when
+ * validation unexpectedly rejects the input.
+ */
+function validValue(env: Record<string, string>): ValidatedEnv {
+  const result = validate(env);
+  if (result.error) {
+    throw new Error(`expected a valid environment: ${result.error.message}`);
+  }
+  return result.value;
+}
 
 describe('envValidationSchema — SWAGGER_ENABLED', () => {
   it('should reject SWAGGER_ENABLED with an invalid value', () => {
@@ -34,9 +62,7 @@ describe('envValidationSchema — SWAGGER_ENABLED', () => {
   });
 
   it('should apply default false when SWAGGER_ENABLED is not set', () => {
-    const { value, error } = validate({});
-    expect(error).toBeUndefined();
-    expect(value.SWAGGER_ENABLED).toBe('false');
+    expect(validValue({}).SWAGGER_ENABLED).toBe('false');
   });
 });
 
@@ -62,16 +88,19 @@ describe('envValidationSchema — storage credentials', () => {
     expect(error!.message).toContain('STORAGE_SECRET_KEY');
   });
 
-  it('should default the endpoints to the Compose service name and a public host', () => {
-    const { value, error } = validate({});
-    expect(error).toBeUndefined();
+  it('should default the endpoints to the Compose service name and a distinct public host', () => {
+    const value = validValue({});
+
     expect(value.STORAGE_ENDPOINT).toBe('http://minio:9000');
-    // The two must not collapse into the same value by default: a browser
-    // cannot resolve the Compose service name.
+    // The two must not collapse into the same default: a browser cannot
+    // resolve the Compose service name.
     expect(value.STORAGE_PUBLIC_ENDPOINT).not.toBe(value.STORAGE_ENDPOINT);
   });
 
-  it('should reject a non-URI STORAGE_ENDPOINT', () => {
+  it('should reject a STORAGE_ENDPOINT without an http or https scheme', () => {
+    // `Joi.string().uri()` on its own accepts "minio:9000", reading it as
+    // scheme "minio" with path "9000". The value then fails inside the S3
+    // client, far from its cause.
     const { error } = validate({ STORAGE_ENDPOINT: 'minio:9000' });
     expect(error).toBeDefined();
     expect(error!.message).toContain('STORAGE_ENDPOINT');
@@ -80,18 +109,18 @@ describe('envValidationSchema — storage credentials', () => {
 
 describe('envValidationSchema — video upload limits', () => {
   it('should coerce numeric env vars from strings', () => {
-    const { value, error } = validate({
+    const value = validValue({
       VIDEO_MAX_SIZE_BYTES: '10737418240',
       QUEUE_PORT: '6379',
     });
-    expect(error).toBeUndefined();
+
     expect(value.VIDEO_MAX_SIZE_BYTES).toBe(10737418240);
     expect(value.QUEUE_PORT).toBe(6379);
   });
 
   it('should apply the documented defaults', () => {
-    const { value, error } = validate({});
-    expect(error).toBeUndefined();
+    const value = validValue({});
+
     expect(value.VIDEO_MAX_SIZE_BYTES).toBe(10737418240); // 10 GiB
     expect(value.VIDEO_UPLOAD_PART_SIZE_BYTES).toBe(104857600); // 100 MiB
     expect(value.QUEUE_HOST).toBe('redis');
@@ -106,9 +135,7 @@ describe('envValidationSchema — video upload limits', () => {
   });
 
   it('should reject a part size above the 5 GiB S3 maximum', () => {
-    const { error } = validate({
-      VIDEO_UPLOAD_PART_SIZE_BYTES: '6442450944',
-    });
+    const { error } = validate({ VIDEO_UPLOAD_PART_SIZE_BYTES: '6442450944' });
     expect(error).toBeDefined();
     expect(error!.message).toContain('VIDEO_UPLOAD_PART_SIZE_BYTES');
   });
