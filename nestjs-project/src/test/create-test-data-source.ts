@@ -23,9 +23,16 @@ export function createTestDataSource(
   });
 }
 
+/**
+ * Order matters. Every table holding a foreign key must be emptied before the
+ * table it points at: `videos` references `channels`, so deleting channels
+ * first raises a foreign-key violation inside this helper, which then surfaces
+ * as a failure in whichever unrelated test happened to call it.
+ */
 export async function cleanAllTables(dataSource: DataSource): Promise<void> {
   await dataSource.query('DELETE FROM "refresh_tokens"');
   await dataSource.query('DELETE FROM "verification_tokens"');
+  await dataSource.query('DELETE FROM "videos"');
   await dataSource.query('DELETE FROM "channels"');
   await dataSource.query('DELETE FROM "users"');
 }

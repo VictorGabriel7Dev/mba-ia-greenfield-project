@@ -11,7 +11,17 @@ import type { CompletedPart } from './storage.types';
 const MIN_PART_SIZE = 5 * 1024 * 1024;
 
 async function putPart(url: string, body: Buffer): Promise<string> {
-  const response = await fetch(url, { method: 'PUT', body });
+  // Neither `Buffer` nor `Uint8Array<ArrayBufferLike>` satisfies `BodyInit`
+  // under this TypeScript configuration, although both are accepted at
+  // runtime: since TS 5.7 the typed arrays are generic over their buffer, and
+  // the `BufferSource` in the DOM lib is not. Cast at the boundary where the
+  // value enters the library API, as `.claude/rules/typescript-strict.md`
+  // prescribes, rather than widening the signature of the helper.
+  const view = new Uint8Array(body.buffer, body.byteOffset, body.byteLength);
+  const response = await fetch(url, {
+    method: 'PUT',
+    body: view as unknown as BodyInit,
+  });
   if (!response.ok) {
     throw new Error(
       `part upload failed: ${response.status} ${await response.text()}`,
