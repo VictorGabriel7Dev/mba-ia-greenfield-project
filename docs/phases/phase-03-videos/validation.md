@@ -95,6 +95,12 @@ The same failure appears in the full suite: **143 of 144 pass**, and the one fai
 
 **Resolution:** the test's cleanup is incomplete, so the fix belongs to the test, not to the migration. Editing the migration is forbidden by `.claude/rules/typeorm-migrations.md` ("never edit a migration that has already been executed"), and PostgreSQL has no `CREATE TYPE IF NOT EXISTS` to make `up()` idempotent. The `beforeAll` drops the enum type alongside the tables. Allocated to the same SI as ISS-03, since both touch the same file.
 
+**Correction, added during implementation.** The diagnosis above was right about the symptom and incomplete about the cause. Dropping the enum types was necessary but not sufficient: with the fix applied, the spec still alternated pass and fail on successive runs.
+
+The cause underneath is that `beforeAll` drops the tables with `Promise.all`. Six concurrent `DROP TABLE ... CASCADE` on tables joined by foreign keys take their locks in different orders and **deadlock**. The cleanup then aborts halfway, which is *why* the enum types survived in the first place. The new `videos` foreign key made the collision reliable enough to be visible; before this phase it was rare enough to look like the enum was the whole story.
+
+The fix is therefore both: drop sequentially, and drop the enum types. Verified by four consecutive runs, all green, where the same spec previously alternated.
+
 ### ISS-05 — Dependency gap: `cleanAllTables` does not know about `videos` (resolved)
 
 **Kind:** Dependency Gap
@@ -163,4 +169,6 @@ and the process stays alive, held by an async operation that was not stopped. Th
 
 The practical consequence is that `npm test` never returns on its own, which matters for the Definition of Done: a suite that reports green but does not terminate cannot be gated on in CI without `--forceExit`, and `--forceExit` would hide a genuine leak.
 
-This phase does not fix it, because diagnosing an open handle in the Fase 02 suites is a separate scope. It is recorded so that a leak introduced by this phase is not mistaken for the pre-existing one, and so the phase does not silently inherit the blame. New suites added here close every `DataSource`, queue connection and storage client they open, in `afterAll`.
+This phase does not set out to fix it, because diagnosing an open handle in the Fase 02 suites is a separate scope. It is recorded so that a leak introduced by this phase is not mistaken for the pre-existing one, and so the phase does not silently inherit the blame. New suites added here close every `DataSource`, queue connection and storage client they open, in `afterAll`.
+
+**Resolved incidentally, added at the end of the phase.** The warning no longer appears and `npm test` exits on its own. Nothing was done to it directly, so the explanation is inferred rather than proven: the migrations spec used to die inside `beforeAll` (ISS-04), never reaching the `afterAll` that destroys its `DataSource`. Fixing that suite is the most likely reason the handle stopped leaking. Recorded as an inference, not a claim.

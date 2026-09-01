@@ -206,7 +206,7 @@ This is the first phase to add stateful infrastructure beyond the database: obje
 **Technical actions:**
 
 - Create `src/videos/dto/create-video.dto.ts` — `title` (string, 1..255), `filename` (string, 1..255), `content_type` (string, allowlisted), `size_bytes` (number, positive, `<= VIDEO_MAX_SIZE_BYTES`). Validation via `class-validator` only, letting the Swagger CLI plugin infer the schema, per `.claude/rules/nestjs-dtos.md`
-- Create `src/videos/dto/upload-instructions.response.dto.ts` — a response DTO, so every field needs an explicit `@ApiProperty` (the plugin has nothing to introspect on unvalidated shapes)
+- Create `src/videos/dto/video-responses.dto.ts` — the response DTOs of the module. Response shapes carry no `class-validator` decorators, so the Swagger plugin has nothing to introspect and every field needs an explicit `@ApiProperty`
 - Create `src/videos/videos.service.ts` — `initiateUpload(userId, dto)`:
   1. resolve the channel via `ChannelsService.findByUserId`; throw `ChannelNotFoundException` if absent
   2. compute `partCount = ceil(size_bytes / partSize)`
@@ -353,7 +353,7 @@ The real binaries are not exercised here by design. `ffprobe` and `ffmpeg` live 
 - `GET /videos/:publicId/download` — `@Public()`, `302` to a presigned `GET` carrying `ResponseContentDisposition: attachment; filename="<original_filename>"`
 - `GET /videos/:publicId/thumbnail` — `@Public()`, `302`, or `THUMBNAIL_NOT_AVAILABLE` when `thumbnail_key` is null
 - `GET /videos/:id/status` — authenticated and owner-only, by internal id, returning `status`, `processing_error`, `duration_seconds`. This is the polling surface, and it is deliberately separate from the public routes: the global guard does not populate `request.user` on a `@Public()` route, so one route cannot serve both audiences without weakening the guard
-- Create `src/videos/dto/video.response.dto.ts` and `video-status.response.dto.ts`, both with explicit `@ApiProperty` on every field
+- Extend `src/videos/dto/video-responses.dto.ts` with the public video and status shapes, both with explicit `@ApiProperty` on every field
 - Regenerate `openapi.json` with `npm run openapi:export` and propagate it with `scripts/sync-openapi.sh`
 
 **Tests:**
