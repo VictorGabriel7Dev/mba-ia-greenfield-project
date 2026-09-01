@@ -397,6 +397,34 @@ The real binaries are not exercised here by design. `ffprobe` and `ffmpeg` live 
 
 ---
 
+### SI-03.13 — Lint Debt
+
+**Description:** Make `npm run lint` exit 0. Added to the plan during implementation, once measuring the baseline showed that the Definition of Done was not satisfiable before this phase. Like SI-02.14 did for `tsc`, it repays pre-existing debt in a step of its own rather than mixed into a feature commit.
+
+**Baseline, measured on the untouched `dev` branch:** `npm run lint` exits **1**, with **150 errors across 11 files**. The project's own Definition of Done requires lint to pass, and the enunciado lists a broken lint as an automatic rejection, so the phase cannot close without this.
+
+**Technical actions:**
+
+- Fix the production-code violations properly: the `as any` on the driver error in `src/channels/channels.service.ts`, the bare `Function` type in `src/test/create-test-data-source.ts`, an unused variable and a dead import in two Fase 02 specs, `() => ({}) as any` in the `ArgumentsHost` mocks, and `expect.any(String)` used inside an object literal
+- Resolve the contradiction inside `eslint.config.mjs`. It turns `no-explicit-any` **off**, which is the right call for test doubles, while keeping `no-unsafe-assignment` and `no-unsafe-member-access` as **errors**. The two cannot coexist: an `as any` mock cannot be used without violating the latter. A `files:`-scoped override for test files completes the intent that was already there
+- Demote those rules to **warnings** rather than switching them off, so the debt stays counted and visible
+- Switch `unbound-method` off for test files only: passing an unbound method to `expect(...)` is how jest assertions are written, the reference is inspected and never called, and typescript-eslint documents it as a known false positive with jest
+- Production code under `src/` keeps the full strictness of `recommendedTypeChecked`; the override touches test files only
+
+**Tests:** no new tests. The check is `npm run lint` exiting 0.
+
+**Dependencies:** none, but it must land before the phase closes.
+
+**Acceptance criteria:**
+
+- `npm run lint` exits 0
+- The remaining findings are warnings, and their count is reported rather than hidden
+- Running eslint over `src/**` excluding test files produces no error
+- No test was deleted or skipped to reach the result
+
+---
+
+
 ## Technical Specifications
 
 ### Data Model
@@ -679,7 +707,7 @@ SI-03.2 + SI-03.3 + SI-03.5 + SI-03.6
 
 Linearized implementation order: SI-03.1 → SI-03.2, SI-03.3, SI-03.6, SI-03.9 (parallel) → SI-03.4, SI-03.5 (parallel) → SI-03.7 → SI-03.8 → SI-03.10 → SI-03.11 → SI-03.12
 
-SI-03.4 is a correction step and does not gate the feature chain, but it must land before the phase closes, because the Definition of Done requires the whole suite green and it is the one test that is red today.
+SI-03.4 and SI-03.13 are correction steps and do not gate the feature chain, but both must land before the phase closes, because the Definition of Done requires the whole suite green and lint at exit 0, and both are red today.
 
 ## Deliverables
 
@@ -696,6 +724,9 @@ SI-03.4 is a correction step and does not gate the feature chain, but it must la
 - [ ] Buckets created idempotently by an infrastructure step, not by the application
 - [ ] Migration creating the `videos` table, with the entity related to `channels`
 - [ ] Pre-existing failure in `migrations.integration-spec.ts` fixed (ISS-04) and the spec extended for the new migration
+- [ ] Pre-existing lint debt cleared so `npm run lint` exits 0 for the first time (SI-03.13)
+- [ ] `npm run test:e2e` actually serial, matching what `CLAUDE.md` already claimed
+- [ ] `openapi.json` documents every request body, which it never did before
 - [ ] `.env.example` fixed so `docker compose up` works from a plain copy (ISS-08)
 - [ ] `cleanAllTables` aware of the `videos` table, in the correct order
 - [ ] `ChannelsService.findByUserId` added, keeping the `Channel` entity owned by its own module
