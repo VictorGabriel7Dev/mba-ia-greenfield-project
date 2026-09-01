@@ -1,0 +1,20 @@
+# Video worker image.
+#
+# Same Node major as Dockerfile.dev, plus FFmpeg. FFmpeg lives here and only
+# here: it is a large native dependency and the API never invokes it, so it has
+# no reason to be in the API image (see TD-04 in the phase 03 decisions).
+#
+# Keep the Node version in sync with Dockerfile.dev. The two images share the
+# same node_modules through the bind mount, so a mismatch would surface as a
+# native-module ABI error rather than as a version warning.
+FROM node:25.6.0-slim
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends procps curl ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /home/node/app
+
+USER node
+
+CMD [ "npm", "run", "worker" ]
