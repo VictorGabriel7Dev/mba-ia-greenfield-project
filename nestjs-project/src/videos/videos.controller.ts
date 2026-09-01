@@ -98,14 +98,22 @@ export class VideosController {
     description: 'Upload assembled and queued for processing',
     type: UploadCompletedDto,
   })
-  @ApiResponse({ status: 400, description: 'Invalid body', schema: ERROR_SCHEMA })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid body',
+    schema: ERROR_SCHEMA,
+  })
   @ApiResponse({ status: 401, description: 'Missing or invalid access token' })
   @ApiResponse({
     status: 403,
     description: 'The video belongs to another channel',
     schema: ERROR_SCHEMA,
   })
-  @ApiResponse({ status: 404, description: 'Video not found', schema: ERROR_SCHEMA })
+  @ApiResponse({
+    status: 404,
+    description: 'Video not found',
+    schema: ERROR_SCHEMA,
+  })
   @ApiResponse({
     status: 409,
     description: 'The video is not a draft, or has no open upload',
@@ -148,7 +156,11 @@ export class VideosController {
     description: 'The video belongs to another channel',
     schema: ERROR_SCHEMA,
   })
-  @ApiResponse({ status: 404, description: 'Video not found', schema: ERROR_SCHEMA })
+  @ApiResponse({
+    status: 404,
+    description: 'Video not found',
+    schema: ERROR_SCHEMA,
+  })
   @ApiResponse({
     status: 409,
     description: 'There is no open upload to abort',
@@ -168,14 +180,22 @@ export class VideosController {
     description:
       'Addressed by internal id and restricted to the owner. Processing is asynchronous, so this is the surface the owner polls while the video is not ready yet.',
   })
-  @ApiResponse({ status: 200, description: 'Current status', type: VideoStatusDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Current status',
+    type: VideoStatusDto,
+  })
   @ApiResponse({ status: 401, description: 'Missing or invalid access token' })
   @ApiResponse({
     status: 403,
     description: 'The video belongs to another channel',
     schema: ERROR_SCHEMA,
   })
-  @ApiResponse({ status: 404, description: 'Video not found', schema: ERROR_SCHEMA })
+  @ApiResponse({
+    status: 404,
+    description: 'Video not found',
+    schema: ERROR_SCHEMA,
+  })
   async status(
     @CurrentUser() user: JwtPayload,
     @Param('id', ParseUUIDPipe) id: string,
@@ -203,9 +223,7 @@ export class VideosController {
     description: 'Unknown identifier, or the video is not ready',
     schema: ERROR_SCHEMA,
   })
-  async findOne(
-    @Param('publicId') publicId: string,
-  ): Promise<PublicVideoDto> {
+  async findOne(@Param('publicId') publicId: string): Promise<PublicVideoDto> {
     const video = await this.videosService.findPublicByPublicId(publicId);
     return toPublicVideo(video);
   }
@@ -219,7 +237,11 @@ export class VideosController {
       'Redirects to a short-lived presigned URL on the object storage. Storage answers range requests with 206 Partial Content, so playback starts without downloading the whole file.',
   })
   @ApiResponse({ status: 302, description: 'Redirect to the storage URL' })
-  @ApiResponse({ status: 404, description: 'Video not found', schema: ERROR_SCHEMA })
+  @ApiResponse({
+    status: 404,
+    description: 'Video not found',
+    schema: ERROR_SCHEMA,
+  })
   async stream(
     @Param('publicId') publicId: string,
   ): Promise<{ url: string; statusCode: number }> {
@@ -238,7 +260,11 @@ export class VideosController {
       'Same mechanism as streaming, with a content disposition that makes the browser save the file under its original name.',
   })
   @ApiResponse({ status: 302, description: 'Redirect to the storage URL' })
-  @ApiResponse({ status: 404, description: 'Video not found', schema: ERROR_SCHEMA })
+  @ApiResponse({
+    status: 404,
+    description: 'Video not found',
+    schema: ERROR_SCHEMA,
+  })
   async download(
     @Param('publicId') publicId: string,
   ): Promise<{ url: string; statusCode: number }> {
