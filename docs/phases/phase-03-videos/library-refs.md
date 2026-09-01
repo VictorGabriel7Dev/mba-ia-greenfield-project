@@ -1,15 +1,22 @@
 ---
 libs:
   "@nestjs/bullmq":
-    version: "^12.0.0"
+    version: "^11.0.5"
     source: "https://docs.nestjs.com/techniques/queues"
     verified_against_install: true
     fetched_at: "2026-09-01T18:05:00-03:00"
+    note: "Pinned to 11 rather than the latest 12; see 'Why version 11' below."
   bullmq:
     version: "^6.3.4"
     source: "https://docs.nestjs.com/techniques/queues"
     verified_against_install: true
     fetched_at: "2026-09-01T18:05:00-03:00"
+  ioredis:
+    version: "^5.11.1"
+    source: "https://docs.nestjs.com/techniques/queues"
+    verified_against_install: true
+    fetched_at: "2026-09-01T18:05:00-03:00"
+    note: "Optional peer of bullmq 6; absent it, the module boots and fails only on connect."
   "@aws-sdk/client-s3":
     version: "^3.1124.0"
     source: "https://docs.aws.amazon.com/AmazonS3/latest/userguide/mpuoverview.html"
@@ -43,7 +50,28 @@ The `ffmpeg` entry is the one exception to `verified_against_install`: it is an 
 
 **Source:** NestJS official docs, "Queues" (https://docs.nestjs.com/techniques/queues). Maps to `phase-03-videos/TD-01` Decision A and `TD-10`.
 
-**Peer compatibility, checked before choosing:** `@nestjs/bullmq@12` declares peers `@nestjs/core: ^10 || ^11 || ^12` and `bullmq: ^3 || ^4 || ^5 || ^6`. The project runs NestJS 11, so version 12 of the wrapper with bullmq 6 is inside the declared range and needs no override.
+### Why version 11 and not the latest
+
+The first install took `@nestjs/bullmq@12`, whose peer ranges (`@nestjs/core: ^10 || ^11 || ^12`, `bullmq: ^3 || ^4 || ^5 || ^6`) fit the project. It does not work here, and the reason was only visible once the suite ran.
+
+Version 12 of both `@nestjs/bullmq` and `@nestjs/bull-shared` is published as `"type": "module"`, and their `exports` map points **the same ESM file** at both `import` and `require`. Node 25 tolerates that, because `require(ESM)` has been supported since Node 22.12 for modules without top-level await, so the application boots. Jest's own CommonJS loader does not, and every suite that touches the queue died with:
+
+```
+SyntaxError: Unexpected token 'export'
+```
+
+`@nestjs/bullmq@11.0.5` is CommonJS (no `type` field) and declares `@nestjs/core: ^10 || ^11` with `bullmq: ^3 || ^4 || ^5 || ^6`, so it covers the installed NestJS 11 and bullmq 6 exactly. Both facts were checked against the installed package rather than inferred:
+
+```
+@nestjs/bullmq    11.0.5  type = (commonjs)
+@nestjs/bull-shared 11.0.5 type = (commonjs)
+```
+
+This is the same ESM friction that TD-07 used to reject `nanoid`, hitting a dependency where it could not be designed away.
+
+**A second trap in the same area:** `bullmq@6` made `ioredis` an **optional** dependency. Without it the module registers fine and only fails when a connection is attempted, with a message about a missing optional package rather than a missing dependency. It is now an explicit dependency.
+
+**Peer compatibility, checked before choosing:** `@nestjs/bullmq@11.0.5` declares peers `@nestjs/core: ^10 || ^11` and `bullmq: ^3 || ^4 || ^5 || ^6`. The project runs NestJS 11, so the wrapper with bullmq 6 is inside the declared range and needs no override.
 
 **Exports actually present in the installed package** (verified by loading the module and listing its keys):
 

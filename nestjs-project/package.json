@@ -25,7 +25,9 @@
     "migration:generate": "npm run typeorm -- migration:generate -d src/database/data-source.ts",
     "migration:create": "npm run typeorm -- migration:create",
     "seed": "ts-node --compiler-options '{\"module\":\"CommonJS\"}' src/database/seeds/seed.ts",
-    "openapi:export": "ts-node -r tsconfig-paths/register src/openapi-export.ts"
+    "openapi:export": "ts-node -r tsconfig-paths/register src/openapi-export.ts",
+    "worker": "ts-node -r tsconfig-paths/register src/worker.ts",
+    "worker:prod": "node dist/worker"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1124.0",
