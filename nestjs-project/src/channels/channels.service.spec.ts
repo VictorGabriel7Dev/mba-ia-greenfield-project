@@ -30,6 +30,13 @@ function makeUniqueError(): QueryFailedError {
   return err;
 }
 
+function makeRepository(overrides: Record<string, jest.Mock> = {}): any {
+  return {
+    findOne: jest.fn().mockResolvedValue(null),
+    ...overrides,
+  };
+}
+
 function makeDataSource(manager: any): any {
   return {
     transaction: jest.fn((cb: (manager: any) => Promise<any>) => cb(manager)),
@@ -45,7 +52,10 @@ describe('ChannelsService', () => {
         create: jest.fn().mockReturnValue(channel),
         save: jest.fn().mockResolvedValue(channel),
       });
-      const service = new ChannelsService(makeDataSource(manager));
+      const service = new ChannelsService(
+        makeDataSource(manager),
+        makeRepository(),
+      );
 
       const result = await service.createChannel('user-id', 'test@example.com');
 
@@ -67,7 +77,10 @@ describe('ChannelsService', () => {
         create: jest.fn().mockReturnValue(resolved),
         save: jest.fn().mockResolvedValue(resolved),
       });
-      const service = new ChannelsService(makeDataSource(manager));
+      const service = new ChannelsService(
+        makeDataSource(manager),
+        makeRepository(),
+      );
 
       const result = await service.createChannel('user-id', 'john@example.com');
 
@@ -89,7 +102,10 @@ describe('ChannelsService', () => {
           .mockRejectedValueOnce(makeUniqueError())
           .mockResolvedValueOnce(resolved),
       });
-      const service = new ChannelsService(makeDataSource(manager));
+      const service = new ChannelsService(
+        makeDataSource(manager),
+        makeRepository(),
+      );
 
       const result = await service.createChannel(
         'user-id',
@@ -107,7 +123,10 @@ describe('ChannelsService', () => {
         create: jest.fn(),
         save: jest.fn(),
       });
-      const service = new ChannelsService(makeDataSource(manager));
+      const service = new ChannelsService(
+        makeDataSource(manager),
+        makeRepository(),
+      );
 
       await expect(
         service.createChannel('user-id', 'bob@example.com'),
@@ -124,12 +143,46 @@ describe('ChannelsService', () => {
         create: jest.fn().mockReturnValue(channel),
         save: jest.fn().mockRejectedValue(unexpectedError),
       });
-      const service = new ChannelsService(makeDataSource(manager));
+      const service = new ChannelsService(
+        makeDataSource(manager),
+        makeRepository(),
+      );
 
       await expect(
         service.createChannel('user-id', 'carol@example.com'),
       ).rejects.toThrow('Connection lost');
       expect(manager.save).toHaveBeenCalledTimes(1);
+    });
+  });
+  describe('findByUserId', () => {
+    it('returns the channel of a known user', async () => {
+      const channel = makeChannel('owner');
+      const repository = makeRepository({
+        findOne: jest.fn().mockResolvedValue(channel),
+      });
+      const service = new ChannelsService(
+        makeDataSource(makeManager()),
+        repository,
+      );
+
+      const result = await service.findByUserId('user-id');
+
+      expect(result).toBe(channel);
+      expect(repository.findOne).toHaveBeenCalledWith({
+        where: { user_id: 'user-id' },
+      });
+    });
+
+    it('returns null for a user without a channel, instead of throwing', async () => {
+      const repository = makeRepository({
+        findOne: jest.fn().mockResolvedValue(null),
+      });
+      const service = new ChannelsService(
+        makeDataSource(makeManager()),
+        repository,
+      );
+
+      await expect(service.findByUserId('nobody')).resolves.toBeNull();
     });
   });
 });
