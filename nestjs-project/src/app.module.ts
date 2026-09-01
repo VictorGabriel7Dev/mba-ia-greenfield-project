@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigType } from '@nestjs/config';
+import { BullModule } from '@nestjs/bullmq';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -44,6 +45,14 @@ import { envValidationSchema } from './config/env.validation';
         database: dbConfig.name,
         autoLoadEntities: true,
         synchronize: false,
+      }),
+    }),
+    BullModule.forRootAsync({
+      inject: [queueConfig.KEY],
+      useFactory: (cfg: ConfigType<typeof queueConfig>) => ({
+        // Compose service name, never localhost: inside a container
+        // `localhost` is the container itself.
+        connection: { host: cfg.host, port: cfg.port },
       }),
     }),
     AuthModule,
