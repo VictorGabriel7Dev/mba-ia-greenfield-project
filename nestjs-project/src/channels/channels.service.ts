@@ -10,7 +10,9 @@ const MAX_RETRIES = 5;
 
 function isPgUniqueViolationOnColumn(err: unknown, column: string): boolean {
   if (!(err instanceof QueryFailedError)) return false;
-  const e = err as any;
+  // The driver fields are not on QueryFailedError's declared shape, so they
+  // are named explicitly instead of widening the whole error to `any`.
+  const e = err as QueryFailedError & { code?: string; detail?: string };
   return (
     e.code === PG_UNIQUE_VIOLATION &&
     typeof e.detail === 'string' &&

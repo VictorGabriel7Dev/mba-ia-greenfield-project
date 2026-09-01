@@ -12,7 +12,8 @@ export class PresignedPartDto {
 
   @ApiProperty({
     description: 'Presigned URL to PUT this part directly to storage.',
-    example: 'https://storage.example/streamtube-videos/...?X-Amz-Signature=...',
+    example:
+      'https://storage.example/streamtube-videos/...?X-Amz-Signature=...',
   })
   url: string;
 }
@@ -21,7 +22,10 @@ export class UploadInstructionsDto {
   @ApiProperty({ format: 'uuid' })
   id: string;
 
-  @ApiProperty({ example: 'Ab3dEf6hIj9k', description: 'Public URL identifier.' })
+  @ApiProperty({
+    example: 'Ab3dEf6hIj9k',
+    description: 'Public URL identifier.',
+  })
   public_id: string;
 
   @ApiProperty({ enum: VideoStatus, example: VideoStatus.DRAFT })
@@ -53,7 +57,8 @@ export class UploadCompletedDto {
 
   @ApiProperty({
     example: 10737418240,
-    description: 'Size measured by storage, not the size declared by the client.',
+    description:
+      'Size measured by storage, not the size declared by the client.',
   })
   size_bytes: number;
 }

@@ -95,11 +95,7 @@ export class VideosService {
     // The id is generated here rather than by the database because the storage
     // key is derived from it and has to exist before the row is written.
     const videoId = randomUUID();
-    const storageKey = this.buildSourceKey(
-      channel.id,
-      videoId,
-      input.filename,
-    );
+    const storageKey = this.buildSourceKey(channel.id, videoId, input.filename);
     const partCount = Math.ceil(input.sizeBytes / this.video.partSizeBytes);
 
     const uploadId = await this.storageService.createMultipartUpload(

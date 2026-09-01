@@ -30,7 +30,13 @@ import { VIDEO_QUEUE } from './videos.constants';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [appConfig, databaseConfig, storageConfig, queueConfig, videoConfig],
+      load: [
+        appConfig,
+        databaseConfig,
+        storageConfig,
+        queueConfig,
+        videoConfig,
+      ],
     }),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],

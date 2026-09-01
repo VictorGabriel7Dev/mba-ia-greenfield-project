@@ -47,10 +47,7 @@ function makeVideo(overrides: Partial<Video> = {}): Video {
   return Object.assign(video, overrides);
 }
 
-function makeJob(
-  attemptsMade = 0,
-  attempts = 3,
-): Job<ProcessVideoJobData> {
+function makeJob(attemptsMade = 0, attempts = 3): Job<ProcessVideoJobData> {
   return {
     id: 'job-1',
     data: { videoId: VIDEO_ID },
@@ -98,7 +95,7 @@ describe('VideoProcessingProcessor', () => {
 
       await processor.process(makeJob());
 
-      const saved = repository.save.mock.calls[0][0] as Video;
+      const saved = repository.save.mock.calls[0][0];
       expect(saved.status).toBe(VideoStatus.READY);
       expect(saved.duration_seconds).toBe(2);
       expect(saved.metadata).toEqual({
@@ -147,8 +144,12 @@ describe('VideoProcessingProcessor', () => {
 
       await processor.process(makeJob());
 
-      const [bucket, , body, contentType] = storage.putObject.mock
-        .calls[0] as [string, string, Buffer, string];
+      const [bucket, , body, contentType] = storage.putObject.mock.calls[0] as [
+        string,
+        string,
+        Buffer,
+        string,
+      ];
       expect(bucket).toBe(storageCfg.thumbnailsBucket);
       expect(contentType).toBe('image/jpeg');
       expect(body.length).toBeGreaterThan(0);
@@ -175,7 +176,7 @@ describe('VideoProcessingProcessor', () => {
         'Invalid data found',
       );
 
-      const saved = repository.save.mock.calls[0][0] as Video;
+      const saved = repository.save.mock.calls[0][0];
       expect(saved.status).toBe(VideoStatus.FAILED);
       expect(saved.processing_error).toBe('Invalid data found');
     });
@@ -197,7 +198,7 @@ describe('VideoProcessingProcessor', () => {
 
       await expect(processor.process(makeJob(2, 3))).rejects.toThrow();
 
-      const saved = repository.save.mock.calls[0][0] as Video;
+      const saved = repository.save.mock.calls[0][0];
       expect(saved.status).toBe(VideoStatus.FAILED);
       expect(saved.processing_error).toContain('empty frame');
     });
@@ -208,7 +209,7 @@ describe('VideoProcessingProcessor', () => {
 
       await expect(processor.process(makeJob(0, 1))).rejects.toThrow();
 
-      const saved = repository.save.mock.calls[0][0] as Video;
+      const saved = repository.save.mock.calls[0][0];
       expect(saved.status).toBe(VideoStatus.FAILED);
     });
   });

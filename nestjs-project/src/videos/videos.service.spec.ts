@@ -57,6 +57,14 @@ interface Mocks {
   queue: { add: jest.Mock };
 }
 
+/**
+ * `jest.Mock.mock.calls` is typed `any[]`, so every index access on it trips
+ * the no-unsafe-* rules. Narrowing once here keeps the assertions typed.
+ */
+function callArgs(mock: jest.Mock): unknown[][] {
+  return mock.mock.calls as unknown as unknown[][];
+}
+
 function makeChannel(): Channel {
   const channel = new Channel();
   channel.id = CHANNEL_ID;
@@ -103,7 +111,9 @@ function build(): { service: VideosService; mocks: Mocks } {
       abortMultipartUpload: jest.fn().mockResolvedValue(undefined),
       headObject: jest.fn().mockResolvedValue({ contentLength: 2048 }),
       presignGet: jest.fn().mockResolvedValue('https://signed/get'),
-      presignInternalGet: jest.fn().mockResolvedValue('https://signed/internal'),
+      presignInternalGet: jest
+        .fn()
+        .mockResolvedValue('https://signed/internal'),
       putObject: jest.fn().mockResolvedValue(undefined),
     },
     queue: { add: jest.fn().mockResolvedValue(undefined) },
@@ -158,8 +168,9 @@ describe('VideosService', () => {
         sizeBytes: TEN_GIB,
       });
 
-      const partCount = mocks.storage.presignUploadParts.mock
-        .calls[0][3] as number;
+      const partCount = callArgs(
+        mocks.storage.presignUploadParts,
+      )[0][3] as number;
       expect(partCount).toBeLessThan(10000);
     });
   });
@@ -220,7 +231,7 @@ describe('VideosService', () => {
 
   describe('initiateUpload — persistence', () => {
     it('persists the video as a draft owned by the caller channel', async () => {
-      const { service, mocks } = build();
+      const { service } = build();
 
       const result = await service.initiateUpload(USER_ID, validInput);
 
@@ -273,8 +284,8 @@ describe('VideosService', () => {
       const result = await service.initiateUpload(USER_ID, validInput);
 
       expect(mocks.repository.save).toHaveBeenCalledTimes(2);
-      const first = mocks.repository.save.mock.calls[0][0] as Video;
-      const second = mocks.repository.save.mock.calls[1][0] as Video;
+      const first = callArgs(mocks.repository.save)[0][0] as Video;
+      const second = callArgs(mocks.repository.save)[1][0] as Video;
       expect(first.public_id).not.toBe(second.public_id);
       expect(result.video.public_id).toBe(second.public_id);
     });
@@ -318,7 +329,7 @@ describe('VideosService', () => {
       await service.completeUpload(USER_ID, 'video-uuid', parts);
 
       expect(mocks.queue.add).toHaveBeenCalledTimes(1);
-      const [jobName, payload, options] = mocks.queue.add.mock.calls[0] as [
+      const [jobName, payload, options] = callArgs(mocks.queue.add)[0] as [
         string,
         { videoId: string },
         { jobId: string; attempts: number; removeOnFail: boolean },
@@ -369,7 +380,9 @@ describe('VideosService', () => {
 
     it('rejects completing a draft with no open upload', async () => {
       const { service, mocks } = build();
-      mocks.repository.findOne.mockResolvedValue(makeVideo({ upload_id: null }));
+      mocks.repository.findOne.mockResolvedValue(
+        makeVideo({ upload_id: null }),
+      );
 
       await expect(
         service.completeUpload(USER_ID, 'video-uuid', parts),
@@ -390,14 +403,16 @@ describe('VideosService', () => {
         video.storage_key,
         'upload-1',
       );
-      const saved = mocks.repository.save.mock.calls[0][0] as Video;
+      const saved = callArgs(mocks.repository.save)[0][0] as Video;
       expect(saved.upload_id).toBeNull();
       expect(saved.status).toBe(VideoStatus.DRAFT);
     });
 
     it('rejects aborting when there is no open upload', async () => {
       const { service, mocks } = build();
-      mocks.repository.findOne.mockResolvedValue(makeVideo({ upload_id: null }));
+      mocks.repository.findOne.mockResolvedValue(
+        makeVideo({ upload_id: null }),
+      );
 
       await expect(
         service.abortUpload(USER_ID, 'video-uuid'),
@@ -425,7 +440,7 @@ describe('VideosService', () => {
 
       await service.findPublicByPublicId('Ab3dEf6hIj9k');
 
-      const query = mocks.repository.findOne.mock.calls[0][0] as {
+      const query = callArgs(mocks.repository.findOne)[0][0] as {
         where: { public_id: string; status: VideoStatus };
       };
       expect(query.where.status).toBe(VideoStatus.READY);
@@ -458,7 +473,7 @@ describe('VideosService', () => {
 
       await service.buildDownloadUrl('Ab3dEf6hIj9k');
 
-      const options = mocks.storage.presignGet.mock.calls[0][3] as {
+      const options = callArgs(mocks.storage.presignGet)[0][3] as {
         contentDisposition: string;
       };
       expect(options.contentDisposition).toBe(
@@ -479,7 +494,7 @@ describe('VideosService', () => {
 
       await service.buildDownloadUrl('Ab3dEf6hIj9k');
 
-      const options = mocks.storage.presignGet.mock.calls[0][3] as {
+      const options = callArgs(mocks.storage.presignGet)[0][3] as {
         contentDisposition: string;
       };
       expect(options.contentDisposition).not.toContain('"b');

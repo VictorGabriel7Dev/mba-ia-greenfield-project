@@ -328,7 +328,7 @@ describe('Videos (e2e)', () => {
         .get(`/videos/${instructions.public_id}/thumbnail`)
         .expect(302);
 
-      const response = await fetch(redirect.headers.location as string);
+      const response = await fetch(redirect.headers.location);
       expect(response.status).toBe(200);
       const bytes = Buffer.from(await response.arrayBuffer());
 
@@ -485,7 +485,7 @@ describe('Videos (e2e)', () => {
         .get(`/videos/${instructions.public_id}/stream`)
         .expect(302);
 
-      const location = new URL(redirect.headers.location as string);
+      const location = new URL(redirect.headers.location);
       // Both hosts resolve from inside the Compose network, so behaviour
       // cannot tell them apart. Only the host can.
       expect(location.host).toBe(new URL(storage.publicEndpoint).host);
@@ -501,7 +501,7 @@ describe('Videos (e2e)', () => {
         .get(`/videos/${instructions.public_id}/stream`)
         .expect(302);
 
-      const response = await fetch(redirect.headers.location as string, {
+      const response = await fetch(redirect.headers.location, {
         headers: { Range: 'bytes=0-1023' },
       });
 
@@ -523,7 +523,7 @@ describe('Videos (e2e)', () => {
         .get(`/videos/${instructions.public_id}/download`)
         .expect(302);
 
-      const location = new URL(redirect.headers.location as string);
+      const location = new URL(redirect.headers.location);
       const disposition = location.searchParams.get(
         'response-content-disposition',
       );
