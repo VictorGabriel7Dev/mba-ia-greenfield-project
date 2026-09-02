@@ -12,7 +12,7 @@ This is a monorepo with two main areas:
 
 - `nestjs-project/` — Backend API (NestJS 11, TypeScript, Express). Contains modules for users, channels, videos, comments, etc.
 - `docs/` — Project documentation, architecture diagrams, and planning.
-- `next-frontend/` (Next.js) — not yet initialized
+- `next-frontend/` — Frontend (Next.js). Initialized; Fases 01 and 02 (auth screens) are implemented. The video interface belongs to Fases 04 and 05.
 
 ## Architecture (C4 Container Diagram)
 
@@ -23,8 +23,62 @@ See `docs/diagrams/software-arch.mermaid` for the full diagram. Key containers:
 - **Video Worker** (FFmpeg) → consumes jobs from queue, processes videos, updates DB and storage
 - **Database** (PostgreSQL) → users, channels, videos, comments, likes
 - **Object Storage** (S3/MinIO) → video files and thumbnails
-- **Message Queue** (TBD) → video processing job queue
+- **Message Queue** (BullMQ over Redis) → video processing job queue
 - **Email Service** (SMTP) → account confirmation and password recovery
+
+## Videos (Fase 03)
+
+Video ingestion is the first flow in the project that crosses a process
+boundary. Decisions and their trade-offs are in
+`docs/decisions/technical-decisions-phase-03-videos.md`; the plan is in
+`docs/phases/phase-03-videos/`.
+
+**No video byte ever passes through the API.** The client uploads directly to
+object storage with presigned multipart URLs, and reads back through a redirect
+to a presigned URL. The API stays on the control plane. Any change that makes
+the API stream file content is a regression of the single property that lets a
+10GB upload work at all.
+
+**Flow**
+
+```
+POST /videos                 → row created as `draft`, multipart opened,
+                               one presigned URL returned per part
+client → object storage      → parts uploaded directly, in parallel, resumable
+POST /videos/:id/complete    → parts assembled, size measured, `processing`,
+                               job enqueued on `video-processing`
+video-worker                 → ffprobe for duration and metadata,
+                               ffmpeg for one frame, thumbnail stored,
+                               row becomes `ready` (or `failed`)
+GET /videos/:publicId/stream → 302 to a short-lived presigned URL; storage
+                               answers Range with 206 Partial Content
+```
+
+**Endpoints** (`nestjs-project/src/videos/videos.controller.ts`)
+
+| Method | Path | Access |
+|---|---|---|
+| POST | `/videos` | authenticated |
+| POST | `/videos/:id/complete` | authenticated, owner |
+| POST | `/videos/:id/abort` | authenticated, owner |
+| GET | `/videos/:id/status` | authenticated, owner |
+| GET | `/videos/:publicId` | public, `ready` only |
+| GET | `/videos/:publicId/stream` | public, `ready` only |
+| GET | `/videos/:publicId/download` | public, `ready` only |
+| GET | `/videos/:publicId/thumbnail` | public, `ready` only |
+
+**Status lifecycle:** `draft` → `processing` → `ready` | `failed`. Retries do
+not change the status; only exhausting the queue attempts moves a video to
+`failed`, and the reason is persisted in `processing_error`.
+
+**Two storage endpoints, not one.** `STORAGE_ENDPOINT` is the Compose service
+name and is used for every server-to-server call. `STORAGE_PUBLIC_ENDPOINT` is
+used only to sign URLs that reach a browser. A URL signed with the internal
+endpoint resolves only inside the Docker network, and that failure is invisible
+from the test suite, which also runs inside it.
+
+**FFmpeg lives only in the worker image** (`nestjs-project/Dockerfile.worker`).
+The API never invokes it and its image does not carry it.
 
 ## Docker Networking
 
