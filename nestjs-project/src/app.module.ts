@@ -1,21 +1,35 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigType } from '@nestjs/config';
+import { BullModule } from '@nestjs/bullmq';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
+import { VideosModule } from './videos/videos.module';
 import appConfig from './config/app.config';
 import authConfig from './config/auth.config';
 import databaseConfig from './config/database.config';
 import mailConfig from './config/mail.config';
 import swaggerConfig from './config/swagger.config';
+import storageConfig from './config/storage.config';
+import queueConfig from './config/queue.config';
+import videoConfig from './config/video.config';
 import { envValidationSchema } from './config/env.validation';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [appConfig, authConfig, databaseConfig, mailConfig, swaggerConfig],
+      load: [
+        appConfig,
+        authConfig,
+        databaseConfig,
+        mailConfig,
+        swaggerConfig,
+        storageConfig,
+        queueConfig,
+        videoConfig,
+      ],
       validationSchema: envValidationSchema,
       validationOptions: { allowUnknown: true, abortEarly: false },
     }),
@@ -33,7 +47,16 @@ import { envValidationSchema } from './config/env.validation';
         synchronize: false,
       }),
     }),
+    BullModule.forRootAsync({
+      inject: [queueConfig.KEY],
+      useFactory: (cfg: ConfigType<typeof queueConfig>) => ({
+        // Compose service name, never localhost: inside a container
+        // `localhost` is the container itself.
+        connection: { host: cfg.host, port: cfg.port },
+      }),
+    }),
     AuthModule,
+    VideosModule,
   ],
   controllers: [AppController],
   providers: [AppService],
