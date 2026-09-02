@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { DataSource, QueryFailedError } from 'typeorm';
+import { InjectRepository } from '@nestjs/typeorm';
+import { DataSource, QueryFailedError, Repository } from 'typeorm';
 import { appendRandomSuffix, sanitizeNickname } from './nickname.util';
 import { Channel } from './entities/channel.entity';
 
@@ -9,7 +10,9 @@ const MAX_RETRIES = 5;
 
 function isPgUniqueViolationOnColumn(err: unknown, column: string): boolean {
   if (!(err instanceof QueryFailedError)) return false;
-  const e = err as any;
+  // The driver fields are not on QueryFailedError's declared shape, so they
+  // are named explicitly instead of widening the whole error to `any`.
+  const e = err as QueryFailedError & { code?: string; detail?: string };
   return (
     e.code === PG_UNIQUE_VIOLATION &&
     typeof e.detail === 'string' &&
@@ -19,7 +22,26 @@ function isPgUniqueViolationOnColumn(err: unknown, column: string): boolean {
 
 @Injectable()
 export class ChannelsService {
-  constructor(private readonly dataSource: DataSource) {}
+  constructor(
+    private readonly dataSource: DataSource,
+    @InjectRepository(Channel)
+    private readonly channelRepository: Repository<Channel>,
+  ) {}
+
+  /**
+   * Resolves the channel that belongs to a user.
+   *
+   * Returns `null` rather than throwing: a user without a channel is a valid
+   * state to observe, and only the caller knows whether it is an error in its
+   * own context. The videos module owns that decision, not this one.
+   *
+   * The `Channel` entity stays owned by this module: other modules ask for a
+   * channel through this service instead of injecting its repository, which is
+   * the Single Responsibility rule the root CLAUDE.md states explicitly.
+   */
+  async findByUserId(userId: string): Promise<Channel | null> {
+    return this.channelRepository.findOne({ where: { user_id: userId } });
+  }
 
   async createChannel(userId: string, email: string): Promise<Channel> {
     const baseNickname = sanitizeNickname(email.split('@')[0]);

@@ -129,3 +129,51 @@ describe('exportSpec (integration)', () => {
     }
   });
 });
+
+/**
+ * These assertions read the **committed** `openapi.json`, not a document
+ * generated here.
+ *
+ * The @nestjs/swagger CLI plugin is an AST transformer applied by `nest build`.
+ * The document produced inside this suite goes through ts-jest, which does not
+ * run the transformer, so every request DTO would look empty regardless of
+ * whether the exported contract is correct. Reading the artifact is the only
+ * way to assert on what the frontend actually consumes.
+ */
+describe('the committed openapi.json contract', () => {
+  const contract = JSON.parse(
+    readFileSync(join(__dirname, '..', 'openapi.json'), 'utf-8'),
+  ) as {
+    components: {
+      schemas: Record<string, { properties?: Record<string, unknown> }>;
+    };
+    paths: Record<string, Record<string, unknown>>;
+  };
+
+  it('documents at least one property for every schema', () => {
+    // Exporting through ts-node instead of the compiled build silently drops
+    // every request body from the contract: the schema stays present and
+    // becomes `{ type: 'object', properties: {} }`, which looks like a valid
+    // schema and tells the frontend nothing.
+    const empty = Object.entries(contract.components.schemas)
+      .filter(([, schema]) => Object.keys(schema.properties ?? {}).length === 0)
+      .map(([name]) => name);
+
+    expect(empty).toEqual([]);
+  });
+
+  it('documents the request body of every endpoint that takes one', () => {
+    const bodyRefs: string[] = [];
+    for (const methods of Object.values(contract.paths)) {
+      for (const operation of Object.values(methods)) {
+        const body = (operation as { requestBody?: unknown }).requestBody;
+        if (body) bodyRefs.push(JSON.stringify(body));
+      }
+    }
+
+    expect(bodyRefs.length).toBeGreaterThan(0);
+    for (const ref of bodyRefs) {
+      expect(ref).toContain('#/components/schemas/');
+    }
+  });
+});
