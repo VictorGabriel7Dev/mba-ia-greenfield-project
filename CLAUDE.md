@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-StreamTube — a video sharing platform (YouTube-like). Users can upload, manage, and publish videos. Anonymous users can watch freely; social features (comments, subscriptions, likes) require authentication.
+StreamTube - a video sharing platform (YouTube-like). Users can upload, manage, and publish videos. Anonymous users can watch freely; social features (comments, subscriptions, likes) require authentication.
 
 More info in the project overview: [docs/project-plan.md](docs/project-plan.md)
 
@@ -10,9 +10,9 @@ More info in the project overview: [docs/project-plan.md](docs/project-plan.md)
 
 This is a monorepo with two main areas:
 
-- `nestjs-project/` — Backend API (NestJS 11, TypeScript, Express). Contains modules for users, channels, videos, comments, etc.
-- `docs/` — Project documentation, architecture diagrams, and planning.
-- `next-frontend/` (Next.js) — not yet initialized
+- `nestjs-project/` - Backend API (NestJS 11, TypeScript, Express). Contains modules for users, channels, videos, comments, etc.
+- `docs/` - Project documentation, architecture diagrams, and planning.
+- `next-frontend/` - Frontend (Next.js). Initialized; Fases 01 and 02 (auth screens) are implemented. The video interface belongs to Fases 04 and 05.
 
 ## Architecture (C4 Container Diagram)
 
@@ -23,12 +23,66 @@ See `docs/diagrams/software-arch.mermaid` for the full diagram. Key containers:
 - **Video Worker** (FFmpeg) → consumes jobs from queue, processes videos, updates DB and storage
 - **Database** (PostgreSQL) → users, channels, videos, comments, likes
 - **Object Storage** (S3/MinIO) → video files and thumbnails
-- **Message Queue** (TBD) → video processing job queue
+- **Message Queue** (BullMQ over Redis) → video processing job queue
 - **Email Service** (SMTP) → account confirmation and password recovery
+
+## Videos (Fase 03)
+
+Video ingestion is the first flow in the project that crosses a process
+boundary. Decisions and their trade-offs are in
+`docs/decisions/technical-decisions-phase-03-videos.md`; the plan is in
+`docs/phases/phase-03-videos/`.
+
+**No video byte ever passes through the API.** The client uploads directly to
+object storage with presigned multipart URLs, and reads back through a redirect
+to a presigned URL. The API stays on the control plane. Any change that makes
+the API stream file content is a regression of the single property that lets a
+10GB upload work at all.
+
+**Flow**
+
+```
+POST /videos                 → row created as `draft`, multipart opened,
+                               one presigned URL returned per part
+client → object storage      → parts uploaded directly, in parallel, resumable
+POST /videos/:id/complete    → parts assembled, size measured, `processing`,
+                               job enqueued on `video-processing`
+video-worker                 → ffprobe for duration and metadata,
+                               ffmpeg for one frame, thumbnail stored,
+                               row becomes `ready` (or `failed`)
+GET /videos/:publicId/stream → 302 to a short-lived presigned URL; storage
+                               answers Range with 206 Partial Content
+```
+
+**Endpoints** (`nestjs-project/src/videos/videos.controller.ts`)
+
+| Method | Path | Access |
+|---|---|---|
+| POST | `/videos` | authenticated |
+| POST | `/videos/:id/complete` | authenticated, owner |
+| POST | `/videos/:id/abort` | authenticated, owner |
+| GET | `/videos/:id/status` | authenticated, owner |
+| GET | `/videos/:publicId` | public, `ready` only |
+| GET | `/videos/:publicId/stream` | public, `ready` only |
+| GET | `/videos/:publicId/download` | public, `ready` only |
+| GET | `/videos/:publicId/thumbnail` | public, `ready` only |
+
+**Status lifecycle:** `draft` → `processing` → `ready` | `failed`. Retries do
+not change the status; only exhausting the queue attempts moves a video to
+`failed`, and the reason is persisted in `processing_error`.
+
+**Two storage endpoints, not one.** `STORAGE_ENDPOINT` is the Compose service
+name and is used for every server-to-server call. `STORAGE_PUBLIC_ENDPOINT` is
+used only to sign URLs that reach a browser. A URL signed with the internal
+endpoint resolves only inside the Docker network, and that failure is invisible
+from the test suite, which also runs inside it.
+
+**FFmpeg lives only in the worker image** (`nestjs-project/Dockerfile.worker`).
+The API never invokes it and its image does not carry it.
 
 ## Docker Networking
 
-This project runs entirely in Docker containers. When configuring connections between services (database, cache, queue, etc.), **always use the Docker Compose service name** as the host — never `localhost` or `127.0.0.1`.
+This project runs entirely in Docker containers. When configuring connections between services (database, cache, queue, etc.), **always use the Docker Compose service name** as the host - never `localhost` or `127.0.0.1`.
 
 Inside a container, `localhost` refers to the container itself, not the host machine or other containers. Services communicate through the Docker Compose network using their service names (e.g., `db`, `nestjs-api`).
 
@@ -39,7 +93,7 @@ This applies to all environment variables, configuration files, and code that re
 
 ## Working Principles
 
-- **Single Responsibility:** each module, service, and function should have a clear, focused responsibility. Re-evaluate adherence at every step — when a module starts owning logic or entities that are not its own (e.g., a service creating an entity from another domain), extract it immediately into the proper module instead of deferring to a later corrective task.
+- **Single Responsibility:** each module, service, and function should have a clear, focused responsibility. Re-evaluate adherence at every step - when a module starts owning logic or entities that are not its own (e.g., a service creating an entity from another domain), extract it immediately into the proper module instead of deferring to a later corrective task.
 - **Type Safety:** Strict TypeScript usage across all layers.
 - **Testing:** Strong emphasis on pyramid testing at all levels to ensure reliability and maintainability.
 - **Code Quality:** Use ESLint and Prettier for consistent code style. Code reviews should focus on readability, maintainability, and adherence to best practices.
@@ -54,17 +108,17 @@ A change is only considered complete when **all** of the following pass:
 3. TypeScript compiles cleanly: `npx tsc --noEmit` exits with code 0. Compilation errors must never be left as debt for future tasks.
 4. Lint passes: `npm run lint`.
 
-If any of these fails, the task is not done — fix the underlying issue before declaring completion.
+If any of these fails, the task is not done - fix the underlying issue before declaring completion.
 
 
 ## Git Conventions
 
-- **Main branch:** `main` — never commit directly to it
+- **Main branch:** `main` - never commit directly to it
 - Branches: `feature/*`, `bugfix/*`, `hotfix/*`, `docs/*`
 - **Commits:** short, descriptive messages focused on the "why" of the change
 - **Workflow:** Git Flow conventions. Two long-lived branches:
-  - `main` — stable, production-ready code 
-  - `dev` — integration branch; all feature/bugfix/hotfix branches start from `dev` and merge back into `dev`
+  - `main` - stable, production-ready code 
+  - `dev` - integration branch; all feature/bugfix/hotfix branches start from `dev` and merge back into `dev`
   - When `dev` is stable, it is merged into `main`
 
 ## Testing Policy
@@ -73,7 +127,7 @@ Every change must be tested. During development, run only the tests related to t
 
 ## Scope Limits
 
-- Work on **one feature, fix, or refactoring at a time** — do not mix scopes
+- Work on **one feature, fix, or refactoring at a time** - do not mix scopes
 - Do not include cosmetic changes (formatting, renaming) alongside functional changes
 - If something out of scope comes up during work, note it as a separate task instead of acting on it
 - Focus on the defined scope for each task to ensure clarity and maintainability of the codebase.

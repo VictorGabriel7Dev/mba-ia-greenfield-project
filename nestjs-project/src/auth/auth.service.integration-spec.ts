@@ -31,8 +31,9 @@ import {
   VerificationToken,
   VerificationTokenType,
 } from './entities/verification-token.entity';
+import { Video } from '../videos/entities/video.entity';
 
-const ALL_ENTITIES = [User, Channel, RefreshToken, VerificationToken];
+const ALL_ENTITIES = [User, Channel, RefreshToken, VerificationToken, Video];
 
 async function createAuthTestModule(): Promise<TestingModule> {
   const ds = createTestDataSource(ALL_ENTITIES);
@@ -90,7 +91,7 @@ async function registerConfirmAndLogin(
   return { userId, refreshToken };
 }
 
-describe('AuthService — register (integration)', () => {
+describe('AuthService - register (integration)', () => {
   let authService: AuthService;
   let dataSource: DataSource;
   let verificationTokenRepository: Repository<VerificationToken>;
@@ -181,7 +182,7 @@ describe('AuthService — register (integration)', () => {
   });
 });
 
-describe('AuthService — confirm (integration)', () => {
+describe('AuthService - confirm (integration)', () => {
   let authService: AuthService;
   let dataSource: DataSource;
   let verificationTokenRepository: Repository<VerificationToken>;
@@ -231,7 +232,7 @@ describe('AuthService — confirm (integration)', () => {
 
   it('throws TokenExpiredException for an expired token', async () => {
     const capturePromise = captureConfirmationToken(authService);
-    const { id: userId } = await authService.register({
+    await authService.register({
       email: 'expired@example.com',
       password: 'password123',
     });
@@ -252,7 +253,7 @@ describe('AuthService — confirm (integration)', () => {
   });
 });
 
-describe('AuthService — resendConfirmation (integration)', () => {
+describe('AuthService - resendConfirmation (integration)', () => {
   let authService: AuthService;
   let dataSource: DataSource;
   let verificationTokenRepository: Repository<VerificationToken>;
@@ -304,7 +305,7 @@ describe('AuthService — resendConfirmation (integration)', () => {
   });
 });
 
-describe('AuthService — login (integration)', () => {
+describe('AuthService - login (integration)', () => {
   let authService: AuthService;
   let jwtService: JwtService;
   let dataSource: DataSource;
@@ -383,7 +384,7 @@ describe('AuthService — login (integration)', () => {
   });
 });
 
-describe('AuthService — refresh (integration)', () => {
+describe('AuthService - refresh (integration)', () => {
   let authService: AuthService;
   let jwtService: JwtService;
   let dataSource: DataSource;
@@ -501,7 +502,7 @@ describe('AuthService — refresh (integration)', () => {
   });
 });
 
-describe('AuthService — logout (integration)', () => {
+describe('AuthService - logout (integration)', () => {
   let authService: AuthService;
   let dataSource: DataSource;
   let refreshTokenRepository: Repository<RefreshToken>;
@@ -571,7 +572,7 @@ function capturePasswordResetToken(authService: AuthService): Promise<string> {
   });
 }
 
-describe('AuthService — forgotPassword (integration)', () => {
+describe('AuthService - forgotPassword (integration)', () => {
   let authService: AuthService;
   let dataSource: DataSource;
   let verificationTokenRepository: Repository<VerificationToken>;
@@ -652,7 +653,7 @@ describe('AuthService — forgotPassword (integration)', () => {
   });
 });
 
-describe('AuthService — resetPassword (integration)', () => {
+describe('AuthService - resetPassword (integration)', () => {
   let authService: AuthService;
   let dataSource: DataSource;
   let verificationTokenRepository: Repository<VerificationToken>;
