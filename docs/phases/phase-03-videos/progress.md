@@ -3,19 +3,28 @@
 **Status:** completed
 **SIs:** 13/13 completed
 
-**Definition of Done, measured at the end of the phase:**
+**Definition of Done, re-measured on the delivered tree:**
 
 | Check | Result |
 |---|---|
 | `npx tsc --noEmit` | exit 0 |
-| `npm test -- --runInBand` | exit 0, 258 tests, 31 suites |
+| `npm test` | exit 0, 265 tests, 32 suites |
 | `npm run test:e2e` | exit 0, 70 tests, 4 suites |
-| `npm run lint` | exit 0, 163 warnings |
+| `npm run lint` | exit 0, 0 errors, 163 warnings |
 | `npm run build` | exit 0 |
 
 Baseline before the phase, for comparison: 143 of 144 unit and integration tests
 passing (one pre-existing failure), 52 e2e passing, `tsc` exit 0, and
 `npm run lint` **exit 1 with 150 errors**.
+
+> **`npm test` runs serially by configuration, not by convention.** The
+> integration suite shares a single database, so Jest's default parallelism let
+> one test truncate a table another was reading: `npm test` exited 1 with 8 red
+> suites, and only passed when `--runInBand` was typed by hand. `jest-e2e.json`
+> already carried `maxWorkers: 1`; the unit and integration config in
+> `package.json` did not. Both are serial now, so the command in the acceptance
+> criteria is the command that works, with no flag to remember. Earlier runs of
+> this phase were recorded as `npm test -- --runInBand` for that reason.
 
 ### SI-03.1 — Dependencies, Configuration Namespaces, and Storage/Queue Infrastructure
 - **Status:** completed
