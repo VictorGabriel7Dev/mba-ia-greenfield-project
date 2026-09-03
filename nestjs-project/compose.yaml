@@ -25,7 +25,14 @@ services:
       dockerfile: Dockerfile.worker
     volumes:
       - .:/home/node/app
-    command: npm run worker
+    # O worker roda a aplicacao de verdade, ao contrario do `nestjs-api`, que fica
+    # ocioso com `tail -f /dev/null`. Como o `node_modules` mora no bind mount e a
+    # ordem sugerida no enunciado e `docker compose up` ANTES de `npm install`, num
+    # clone limpo o worker subia sem dependencia, morria com `ts-node not found` e
+    # nao voltava, deixando a fila sem consumidor e o e2e de video em timeout.
+    # Esperar o `node_modules` aparecer torna a ordem dos comandos irrelevante.
+    command: >-
+      sh -c "until [ -x node_modules/.bin/ts-node ]; do echo 'video-worker aguardando npm install'; sleep 3; done; exec npm run worker"
     depends_on:
       db:
         condition: service_healthy
