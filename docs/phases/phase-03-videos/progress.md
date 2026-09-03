@@ -17,6 +17,16 @@ Baseline before the phase, for comparison: 143 of 144 unit and integration tests
 passing (one pre-existing failure), 52 e2e passing, `tsc` exit 0, and
 `npm run lint` **exit 1 with 150 errors**.
 
+> **The video worker waits for `node_modules` before starting.** Verified by cloning
+> this repository fresh and following the enunciado's suggested order: `docker compose
+> up -d`, then `npm install`, then migrations, then the suites. The worker runs the
+> real application, unlike `nestjs-api`, which idles on `tail -f /dev/null`, and
+> `node_modules` lives in the bind mount. Starting before the install meant
+> `ts-node: not found`, a dead container that never came back, a queue with no
+> consumer, and `videos.e2e-spec.ts` failing 18 tests after 457 seconds of timeouts.
+> It passed on the development machine only because `node_modules` was already there
+> from earlier runs. With the wait in place the same clean clone runs 70/70 in 10s.
+
 > **`npm test` runs serially by configuration, not by convention.** The
 > integration suite shares a single database, so Jest's default parallelism let
 > one test truncate a table another was reading: `npm test` exited 1 with 8 red
