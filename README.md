@@ -1,4 +1,4 @@
-# StreamTube — Plataforma de Compartilhamento de Vídeos
+# StreamTube - Plataforma de Compartilhamento de Vídeos
 
 Projeto da disciplina **Desenvolvimento de Aplicações de IA** do MBA de Engenharia de Software com IA da [Full Cycle](https://fullcycle.com.br).
 
@@ -24,10 +24,10 @@ Este é um projeto greenfield desenvolvido para demonstrar como construir uma ap
 
 ## 🎨 Design System (Figma)
 
-- [FC Tube.fig](./FC%20Tube.fig) — arquivo-fonte do **design system** do projeto no Figma.
-- [FC Tube sem padrão.fig](./FC%20Tube%20sem%20padrao.fig) — arquivo-fonte puro, sem tokens, cores, tipografia e espaçamento.
+- [FC Tube.fig](./FC%20Tube.fig) - arquivo-fonte do **design system** do projeto no Figma.
+- [FC Tube sem padrão.fig](./FC%20Tube%20sem%20padrao.fig) - arquivo-fonte puro, sem tokens, cores, tipografia e espaçamento.
 
-Contém os fundamentos visuais do StreamTube — tokens (cores, tipografia, espaçamento, raios), componentes e as telas da plataforma. É a referência de design para a implementação do frontend: os componentes em `next-frontend/components/ui` (shadcn) e os tokens em `next-frontend/app/globals.css` derivam deste arquivo. Abra-o no Figma (`Arquivo → Importar`) para consultar especificações e estados visuais.
+Contém os fundamentos visuais do StreamTube - tokens (cores, tipografia, espaçamento, raios), componentes e as telas da plataforma. É a referência de design para a implementação do frontend: os componentes em `next-frontend/components/ui` (shadcn) e os tokens em `next-frontend/app/globals.css` derivam deste arquivo. Abra-o no Figma (`Arquivo → Importar`) para consultar especificações e estados visuais.
 
 ---
 
@@ -41,13 +41,13 @@ Contém os fundamentos visuais do StreamTube — tokens (cores, tipografia, espa
 
 O projeto é um monorepo baseado em containers Docker. Cada subprojeto sobe sua própria stack via `docker compose`.
 
-- **Frontend** (Next.js 16, App Router + React Server Components) — interface da plataforma. Segue o **modelo BFF**: o navegador nunca chama a API NestJS diretamente; todo tráfego passa por Route Handlers same-origin em `app/api/**`, que fazem proxy server-side para a API.
-- **API** (NestJS 11) — regras de negócio, autenticação (JWT + refresh token rotation), envio de e-mails e acesso ao banco.
-- **Database** (PostgreSQL 17) — usuários, canais e tokens de autenticação.
-- **Email Service** (Mailpit) — captura os e-mails transacionais (confirmação de conta e recuperação de senha) em uma UI local.
-- **Video Worker** (FFmpeg) — processamento de vídeos *(planejado — Fase 03)*.
-- **Object Storage** (S3/MinIO) — arquivos de vídeo e thumbnails *(planejado — Fase 03)*.
-- **Message Queue** — fila de processamento de vídeos *(planejado — Fase 03)*.
+- **Frontend** (Next.js 16, App Router + React Server Components) - interface da plataforma. Segue o **modelo BFF**: o navegador nunca chama a API NestJS diretamente; todo tráfego passa por Route Handlers same-origin em `app/api/**`, que fazem proxy server-side para a API.
+- **API** (NestJS 11) - regras de negócio, autenticação (JWT + refresh token rotation), envio de e-mails e acesso ao banco.
+- **Database** (PostgreSQL 17) - usuários, canais e tokens de autenticação.
+- **Email Service** (Mailpit) - captura os e-mails transacionais (confirmação de conta e recuperação de senha) em uma UI local.
+- **Video Worker** (FFmpeg) - processamento de vídeos *(planejado - Fase 03)*.
+- **Object Storage** (S3/MinIO) - arquivos de vídeo e thumbnails *(planejado - Fase 03)*.
+- **Message Queue** - fila de processamento de vídeos *(planejado - Fase 03)*.
 
 O diagrama de arquitetura completo (C4) está em `docs/diagrams/software-arch.mermaid`.
 
@@ -66,7 +66,7 @@ docker compose up -d
 # Instala dependências (apenas na primeira vez)
 docker compose exec nestjs-api npm install
 
-# Cria o schema do banco (obrigatório — synchronize está desabilitado)
+# Cria o schema do banco (obrigatório - synchronize está desabilitado)
 docker compose exec nestjs-api npm run migration:run
 
 # Sobe o servidor de desenvolvimento em watch mode
@@ -80,7 +80,7 @@ Serviços disponíveis:
 | API NestJS | http://localhost:3000 |
 | PostgreSQL | `localhost:5432` (db/user/senha: `streamtube`) |
 | Mailpit (UI de e-mails) | http://localhost:8025 |
-| Swagger (opcional) | http://localhost:3000/api/docs — habilite com `SWAGGER_ENABLED=true` |
+| Swagger (opcional) | http://localhost:3000/api/docs - habilite com `SWAGGER_ENABLED=true` |
 
 ### 2. Frontend (Next.js)
 
@@ -120,11 +120,11 @@ docker compose exec next-frontend npm test            # unitários + integraçã
 npx playwright test                                   # end-to-end (no host, com dev server em MSW_ENABLED=true)
 ```
 
-Sufixos: `*.test.ts(x)` (unitário), `*.integration.test.ts(x)` (Route Handlers com MSW), `*.e2e-spec.ts` (Playwright). MSW intercepta as chamadas à API NestJS — os testes nunca batem no backend real.
+Sufixos: `*.test.ts(x)` (unitário), `*.integration.test.ts(x)` (Route Handlers com MSW), `*.e2e-spec.ts` (Playwright). MSW intercepta as chamadas à API NestJS - os testes nunca batem no backend real.
 
 ## ✅ Funcionalidades implementadas
 
-**Fase 01 — Configuração base** e **Fase 02 — Autenticação** estão concluídas (backend + frontend).
+**Fase 01 - Configuração base** e **Fase 02 - Autenticação** estão concluídas (backend + frontend).
 
 ### Autenticação (Fase 02)
 
@@ -146,8 +146,8 @@ Endpoints da API (`nestjs-project`):
 
 Telas e Route Handlers BFF (`next-frontend`):
 
-- `/(auth)/signup`, `/(auth)/login`, `/(auth)/forgot-password` — formulários com React Hook Form + Zod e validação inline.
-- `app/api/auth/{signup,login,logout,forgot-password}` — proxy same-origin para a API.
+- `/(auth)/signup`, `/(auth)/login`, `/(auth)/forgot-password` - formulários com React Hook Form + Zod e validação inline.
+- `app/api/auth/{signup,login,logout,forgot-password}` - proxy same-origin para a API.
 
 Segurança: senhas com **Argon2**, **JWT** com `JwtAuthGuard` global (opt-out via `@Public()`), **rotação de refresh token** com detecção de reuso, **rate limiting** (`ThrottlerGuard`) nos endpoints de auth, e sessão no navegador via **iron-session** (cookies HTTP-only).
 
@@ -215,3 +215,14 @@ Detalhes completos em `docs/project-plan.md`.
 | Testes | Jest, Supertest (backend); Vitest, MSW, Playwright (frontend) |
 | Qualidade | ESLint, Prettier |
 </content>
+
+## Contato
+
+- [https://victorgabriel.dev](https://victorgabriel.dev)
+- **GitHub:** [@VictorGabriel7Dev](https://github.com/VictorGabriel7Dev)
+- **LinkedIn:** [in/victorgabriel-dev](https://www.linkedin.com/in/victorgabriel-dev)
+- **WhatsApp:** [@VictorGabriel_Dev](https://wa.me/@VictorGabriel_Dev)
+- **Discord:** [@VictorGabriel.dev](https://discord.com/users/1481407654458036265)
+- **Telegram:** [@VictorGabriel_Dev](https://t.me/VictorGabriel_Dev)
+- **Instagram:** [@VictorGabriel_Dev](https://www.instagram.com/VictorGabriel_Dev)
+- **E-mail:** [contato@victorgabriel.dev](mailto:contato@victorgabriel.dev)
